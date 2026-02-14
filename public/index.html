@@ -20,16 +20,31 @@
             margin-top: 20px; 
         }
 
-        video { 
+        .video-box {
+            position: relative;
             width: 400px; 
             height: 300px; 
             background: black; 
-            border: 2px solid #555; 
+            border: 2px solid #555;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        #controls { 
-            margin-top: 20px; 
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover;
         }
+
+        .status-msg {
+            position: absolute;
+            color: #aaa;
+            font-size: 18px;
+            z-index: 10;
+        }
+
+        #controls { margin-top: 20px; }
         
         button { 
             padding: 10px 20px; 
@@ -40,16 +55,21 @@
 </head>
 <body>
 
-    <h1>omegel
-    </h1>
+    <h1>omegel</h1>
     
     <div class="video-container">
         <div>
             <h3>You</h3>
-            <video id="myVideo" autoplay playsinline muted></video> </div>
+            <div class="video-box">
+                <video id="myVideo" autoplay playsinline muted></video> 
+            </div>
+        </div>
         <div>
             <h3>Stranger</h3>
-            <video id="partnerVideo" autoplay playsinline></video>
+            <div class="video-box">
+                <p id="statusText" class="status-msg">Click Search</p>
+                <video id="partnerVideo" autoplay playsinline style="display: none;"></video>
+            </div>
         </div>
     </div>
 
