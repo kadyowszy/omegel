@@ -6,31 +6,63 @@ const startBtn = document.getElementById('startBtn');
 let myStream;
 let peer;
 
+let isSearching = false;
+let isConnected = false;
+
 navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     .then(stream => {
         myStream = stream;
         myVideo.srcObject = stream;
         myVideo.play();
     })
-    .catch(err => alert("Camera blocked! Please allow access."));
+    .catch(err => {
+        console.error("Camera Error:", err);
+        alert("Camera blocked! Please allow access.");
+    });
 
-startBtn.addEventListener('click', () => {
-    if (startBtn.innerText === "Find Stranger" || startBtn.innerText === "Next Stranger") {
-        startSearch();
+startBtn.addEventListener('click', (e) => {
+    e.preventDefault(); 
+
+    if (isConnected) {
+        skipPartner();
+    } else if (isSearching) {
+        stopSearch();
     } else {
-        location.reload();
+        startSearch();
     }
 });
 
 function startSearch() {
-    console.log("Button clicked. Joining queue...");
+    isSearching = true;
     startBtn.innerText = "Searching...";
     startBtn.disabled = true;
     socket.emit('join_queue');
 }
 
+function stopSearch() {
+    isSearching = false;
+    startBtn.innerText = "Search";
+    startBtn.disabled = false;
+    location.reload();
+}
+
+function skipPartner() {
+    isConnected = false;
+    isSearching = true;
+
+    if (peer) {
+        peer.destroy();
+        peer = null;
+    }
+    partnerVideo.srcObject = null;
+    
+    startSearch();
+}
+
 socket.on('match_found', (data) => {
-    console.log("Match found! Initiator: " + data.initiator);
+    isConnected = true;
+    isSearching = false;
+    
     startBtn.innerText = "Leave";
     startBtn.disabled = false;
 
@@ -45,14 +77,35 @@ socket.on('match_found', (data) => {
     });
 
     peer.on('stream', (stream) => {
-        console.log("Received partner stream");
         partnerVideo.srcObject = stream;
         partnerVideo.play();
     });
+
+    peer.on('close', () => {
+        handlePartnerDisconnect();
+    });
     
-    window.peer = peer;
+    peer.on('error', (err) => {
+        console.error("Peer error:", err);
+        handlePartnerDisconnect();
+    });
 });
 
 socket.on('signal', (data) => {
-    if (peer) peer.signal(data.signal);
+    if (peer) {
+        peer.signal(data.signal);
+    }
 });
+
+function handlePartnerDisconnect() {
+    isConnected = false;
+    isSearching = false;
+    if (peer) {
+        peer.destroy();
+        peer = null;
+    }
+    partnerVideo.srcObject = null;
+    startBtn.innerText = "Search";
+    startBtn.disabled = false;
+    alert("Stranger disconnected.");
+}
