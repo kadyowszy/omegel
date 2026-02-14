@@ -1,13 +1,13 @@
 const socket = io();
 const myVideo = document.getElementById('myVideo');
 const partnerVideo = document.getElementById('partnerVideo');
+const statusText = document.getElementById('statusText');
 const startBtn = document.getElementById('startBtn');
 
 let myStream;
 let peer;
-
-let isSearching = false;
 let isConnected = false;
+let isSearching = false;
 
 navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     .then(stream => {
@@ -17,11 +17,11 @@ navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     })
     .catch(err => {
         console.error("Camera Error:", err);
-        alert("Camera blocked! Please allow access.");
+        statusText.innerText = "Camera Blocked";
     });
 
 startBtn.addEventListener('click', (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
 
     if (isConnected) {
         skipPartner();
@@ -36,6 +36,11 @@ function startSearch() {
     isSearching = true;
     startBtn.innerText = "Searching...";
     startBtn.disabled = true;
+    
+    partnerVideo.style.display = 'none';
+    statusText.style.display = 'block';
+    statusText.innerText = "Looking for someone...";
+    
     socket.emit('join_queue');
 }
 
@@ -43,18 +48,23 @@ function stopSearch() {
     isSearching = false;
     startBtn.innerText = "Search";
     startBtn.disabled = false;
-    location.reload();
+    statusText.innerText = "Click Search";
+    location.reload(); 
 }
 
 function skipPartner() {
     isConnected = false;
     isSearching = true;
-
+    
     if (peer) {
         peer.destroy();
         peer = null;
     }
     partnerVideo.srcObject = null;
+    partnerVideo.style.display = 'none';
+    
+    statusText.style.display = 'block';
+    statusText.innerText = "Skipping...";
     
     startSearch();
 }
@@ -63,8 +73,11 @@ socket.on('match_found', (data) => {
     isConnected = true;
     isSearching = false;
     
-    startBtn.innerText = "Leave";
+    startBtn.innerText = "Leave"; 
     startBtn.disabled = false;
+
+    statusText.innerText = "Connecting...";
+    partnerVideo.style.display = 'none'; 
 
     peer = new SimplePeer({
         initiator: data.initiator,
@@ -77,6 +90,9 @@ socket.on('match_found', (data) => {
     });
 
     peer.on('stream', (stream) => {
+        statusText.style.display = 'none'; 
+        partnerVideo.style.display = 'block'; 
+        
         partnerVideo.srcObject = stream;
         partnerVideo.play();
     });
@@ -86,7 +102,6 @@ socket.on('match_found', (data) => {
     });
     
     peer.on('error', (err) => {
-        console.error("Peer error:", err);
         handlePartnerDisconnect();
     });
 });
@@ -105,7 +120,11 @@ function handlePartnerDisconnect() {
         peer = null;
     }
     partnerVideo.srcObject = null;
-    startBtn.innerText = "Search";
+    
+    partnerVideo.style.display = 'none';
+    statusText.style.display = 'block';
+    statusText.innerText = "Stranger disconnected.";
+    
+    startBtn.innerText = "Search"; 
     startBtn.disabled = false;
-    alert("Stranger disconnected.");
 }
