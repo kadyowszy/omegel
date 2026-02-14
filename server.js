@@ -1,0 +1,44 @@
+const express = require('express');
+const app = express();
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);
+
+app.use(express.static('public'));
+
+let waitingQueue = [];
+
+io.on('connection', (socket) => {
+    console.log('A user connected:', socket.id);
+
+    socket.on('join_queue', () => {
+        waitingQueue.push(socket.id);
+        console.log(`User ${socket.id} joined queue. Queue size: ${waitingQueue.length}`);
+
+        if (waitingQueue.length >= 2) {
+            const user1 = waitingQueue.shift();
+            const user2 = waitingQueue.shift();
+
+            console.log(`Matching ${user1} with ${user2}`);
+
+            io.to(user1).emit('match_found', { partnerId: user2, initiator: true });
+            
+            io.to(user2).emit('match_found', { partnerId: user1, initiator: false });
+        }
+    });
+
+    socket.on('signal', (data) => {
+        io.to(data.target).emit('signal', { 
+            signal: data.signal, 
+            sender: socket.id 
+        });
+    });
+
+    socket.on('disconnect', () => {
+        waitingQueue = waitingQueue.filter(id => id !== socket.id);
+        console.log('User disconnected:', socket.id);
+    });
+});
+
+server.listen(3000, () => {
+    console.log('Server running on http://localhost:3000');
+});
