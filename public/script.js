@@ -1,36 +1,74 @@
 const socket = io();
+
 const myVideo = document.getElementById('myVideo');
 const partnerVideo = document.getElementById('partnerVideo');
 const statusText = document.getElementById('statusText');
 const startBtn = document.getElementById('startBtn');
+const cameraSelect = document.getElementById('cameraSelect');
 
 let myStream;
 let peer;
-
 let isConnected = false;
 let isSearching = false;
 
-navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    .then(stream => {
+getCameras();
+startMyStream();
+
+async function getCameras() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        cameraSelect.innerHTML = ""; 
+        
+        videoDevices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.text = device.label || `Camera ${cameraSelect.length + 1}`;
+            cameraSelect.appendChild(option);
+        });
+    } catch (err) {
+        console.error("Error fetching cameras:", err);
+    }
+}
+
+async function startMyStream(deviceId = null) {
+    if (myStream) {
+        myStream.getTracks().forEach(track => track.stop());
+    }
+
+    const constraints = {
+        audio: true,
+        video: deviceId ? { deviceId: { exact: deviceId } } : true
+    };
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         myStream = stream;
         myVideo.srcObject = stream;
-        myVideo.play();
-    })
-    .catch(err => {
-        console.error("Camera Error:", err);
-        statusText.innerText = "Camera Blocked";
-    });
+        
+        if (peer) {
+            const videoTrack = myStream.getVideoTracks()[0];
+            const sender = peer._pc.getSenders().find(s => s.track.kind === videoTrack.kind);
+            if (sender) {
+                sender.replaceTrack(videoTrack);
+            }
+        }
+    } catch (err) {
+        console.error("Camera access denied:", err);
+        statusText.innerText = "Camera Blocked / Not Found";
+    }
+}
+
+cameraSelect.addEventListener('change', () => {
+    startMyStream(cameraSelect.value);
+});
 
 startBtn.addEventListener('click', (e) => {
     e.preventDefault();
-
-    if (isConnected) {
-        disconnectManual();
-    } else if (isSearching) {
-        stopSearch();
-    } else {
-        startSearch();
-    }
+    if (isConnected) disconnectManual();
+    else if (isSearching) stopSearch();
+    else startSearch();
 });
 
 function startSearch() {
@@ -38,7 +76,6 @@ function startSearch() {
     startBtn.innerText = "Searching...";
     startBtn.disabled = true;
     
-    // UI Update
     partnerVideo.style.display = 'none';
     statusText.style.display = 'block';
     statusText.innerText = "Looking for someone...";
@@ -78,7 +115,6 @@ socket.on('match_found', (data) => {
     
     startBtn.innerText = "Leave"; 
     startBtn.disabled = false;
-
     statusText.innerText = "Connecting...";
     partnerVideo.style.display = 'none'; 
 
@@ -99,24 +135,16 @@ socket.on('match_found', (data) => {
         partnerVideo.play();
     });
 
-    peer.on('close', () => {
-        handlePartnerDisconnect();
-    });
-    
-    peer.on('error', (err) => {
-        handlePartnerDisconnect();
-    });
+    peer.on('close', () => handlePartnerDisconnect());
+    peer.on('error', () => handlePartnerDisconnect());
 });
 
 socket.on('signal', (data) => {
-    if (peer) {
-        peer.signal(data.signal);
-    }
+    if (peer) peer.signal(data.signal);
 });
 
 function handlePartnerDisconnect() {
     if (!isConnected) return;
-
     isConnected = false;
     isSearching = false;
     
