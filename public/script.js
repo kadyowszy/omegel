@@ -6,6 +6,7 @@ const startBtn = document.getElementById('startBtn');
 
 let myStream;
 let peer;
+
 let isConnected = false;
 let isSearching = false;
 
@@ -24,7 +25,7 @@ startBtn.addEventListener('click', (e) => {
     e.preventDefault();
 
     if (isConnected) {
-        skipPartner();
+        disconnectManual();
     } else if (isSearching) {
         stopSearch();
     } else {
@@ -37,6 +38,7 @@ function startSearch() {
     startBtn.innerText = "Searching...";
     startBtn.disabled = true;
     
+    // UI Update
     partnerVideo.style.display = 'none';
     statusText.style.display = 'block';
     statusText.innerText = "Looking for someone...";
@@ -52,21 +54,22 @@ function stopSearch() {
     location.reload(); 
 }
 
-function skipPartner() {
+function disconnectManual() {
     isConnected = false;
-    isSearching = true;
-    
+    isSearching = false;
+
     if (peer) {
         peer.destroy();
         peer = null;
     }
     partnerVideo.srcObject = null;
+    
     partnerVideo.style.display = 'none';
-    
     statusText.style.display = 'block';
-    statusText.innerText = "Skipping...";
+    statusText.innerText = "You disconnected.";
     
-    startSearch();
+    startBtn.innerText = "New Chat";
+    startBtn.disabled = false;
 }
 
 socket.on('match_found', (data) => {
@@ -92,7 +95,6 @@ socket.on('match_found', (data) => {
     peer.on('stream', (stream) => {
         statusText.style.display = 'none'; 
         partnerVideo.style.display = 'block'; 
-        
         partnerVideo.srcObject = stream;
         partnerVideo.play();
     });
@@ -113,18 +115,21 @@ socket.on('signal', (data) => {
 });
 
 function handlePartnerDisconnect() {
+    if (!isConnected) return;
+
     isConnected = false;
     isSearching = false;
+    
     if (peer) {
         peer.destroy();
         peer = null;
     }
     partnerVideo.srcObject = null;
     
-    partnerVideo.style.display = 'none';
-    statusText.style.display = 'block';
+    partnerVideo.style.display = 'none'; 
+    statusText.style.display = 'block';  
     statusText.innerText = "Stranger disconnected.";
     
-    startBtn.innerText = "Search"; 
+    startBtn.innerText = "New Chat"; 
     startBtn.disabled = false;
 }
