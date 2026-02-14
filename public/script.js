@@ -1,5 +1,4 @@
 const socket = io();
-
 const myVideo = document.getElementById('myVideo');
 const partnerVideo = document.getElementById('partnerVideo');
 const statusText = document.getElementById('statusText');
@@ -11,26 +10,7 @@ let peer;
 let isConnected = false;
 let isSearching = false;
 
-getCameras();
 startMyStream();
-
-async function getCameras() {
-    try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
-        cameraSelect.innerHTML = ""; 
-        
-        videoDevices.forEach(device => {
-            const option = document.createElement('option');
-            option.value = device.deviceId;
-            option.text = device.label || `Camera ${cameraSelect.length + 1}`;
-            cameraSelect.appendChild(option);
-        });
-    } catch (err) {
-        console.error("Error fetching cameras:", err);
-    }
-}
 
 async function startMyStream(deviceId = null) {
     if (myStream) {
@@ -39,7 +19,7 @@ async function startMyStream(deviceId = null) {
 
     const constraints = {
         audio: true,
-        video: deviceId ? { deviceId: { exact: deviceId } } : true
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "user" }
     };
 
     try {
@@ -47,6 +27,10 @@ async function startMyStream(deviceId = null) {
         myStream = stream;
         myVideo.srcObject = stream;
         
+        if (cameraSelect.options.length <= 1) {
+            await getCameras();
+        }
+
         if (peer) {
             const videoTrack = myStream.getVideoTracks()[0];
             const sender = peer._pc.getSenders().find(s => s.track.kind === videoTrack.kind);
@@ -56,7 +40,31 @@ async function startMyStream(deviceId = null) {
         }
     } catch (err) {
         console.error("Camera access denied:", err);
-        statusText.innerText = "Camera Blocked / Not Found";
+        statusText.innerText = "Camera Error. Check permissions.";
+    }
+}
+
+async function getCameras() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        cameraSelect.innerHTML = ""; 
+        
+        videoDevices.forEach((device, index) => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.text = device.label || `Camera ${index + 1}`; 
+            cameraSelect.appendChild(option);
+        });
+        
+        if (videoDevices.length === 0) {
+             const option = document.createElement('option');
+             option.text = "No Cameras Found";
+             cameraSelect.appendChild(option);
+        }
+    } catch (err) {
+        console.error("Error fetching cameras:", err);
     }
 }
 
