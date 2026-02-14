@@ -1,44 +1,107 @@
-const express = require('express');
-const app = express();
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+const socket = io(); 
 
-app.use(express.static('public'));
+const myVideo = document.getElementById('myVideo');
+const partnerVideo = document.getElementById('partnerVideo');
+const startBtn = document.getElementById('startBtn');
 
-let waitingQueue = [];
+let myStream;
+let peer;
 
-io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id);
+navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true
+}).then(stream => {
+    myStream = stream;
+    addVideoStream(myVideo, stream);
+}).catch(err => {
+    console.error("Error accessing media devices.", err);
+    alert("Please allow camera access!");
+});
 
-    socket.on('join_queue', () => {
-        waitingQueue.push(socket.id);
-        console.log(`User ${socket.id} joined queue. Queue size: ${waitingQueue.length}`);
+startBtn.addEventListener('click', () => {
+    const status = startBtn.innerText;
 
-        if (waitingQueue.length >= 2) {
-            const user1 = waitingQueue.shift();
-            const user2 = waitingQueue.shift();
+    if (status === "Find Stranger" || status === "Next Stranger") {
+        startSearch();
+    } else if (status === "Leave") {
+        skipPartner();
+    }
+});
 
-            console.log(`Matching ${user1} with ${user2}`);
+function startSearch() {
+    startBtn.innerText = "Searching...";
+    startBtn.disabled = true;
+    socket.emit('join_queue');
+}
 
-            io.to(user1).emit('match_found', { partnerId: user2, initiator: true });
-            
-            io.to(user2).emit('match_found', { partnerId: user1, initiator: false });
-        }
+function skipPartner() {
+    if (peer) {
+        peer.destroy();
+        peer = null;
+    }
+    partnerVideo.srcObject = null;
+    
+    startSearch();
+}
+
+socket.on('match_found', (data) => {
+    // Update Button
+    startBtn.disabled = false;
+    startBtn.innerText = "Leave";
+    
+    const partnerId = data.partnerId;
+    const initiator = data.initiator;
+
+    peer = new SimplePeer({
+        initiator: initiator,
+        stream: myStream,
+        trickle: false
     });
 
-    socket.on('signal', (data) => {
-        io.to(data.target).emit('signal', { 
-            signal: data.signal, 
-            sender: socket.id 
+    peer.on('signal', (signal) => {
+        socket.emit('signal', {
+            target: partnerId,
+            signal: signal
         });
     });
 
-    socket.on('disconnect', () => {
-        waitingQueue = waitingQueue.filter(id => id !== socket.id);
-        console.log('User disconnected:', socket.id);
+    peer.on('stream', (stream) => {
+        partnerVideo.srcObject = stream;
+        partnerVideo.play();
     });
+
+    peer.on('close', () => {
+        handlePartnerDisconnect();
+    });
+    
+    peer.on('error', (err) => {
+        console.log("Peer error:", err);
+        handlePartnerDisconnect();
+    });
+
+    window.peer = peer;
 });
 
-server.listen(3000, () => {
-    console.log('Server running on http://localhost:3000');
+socket.on('signal', (data) => {
+    if (peer) {
+        peer.signal(data.signal);
+    }
 });
+
+function handlePartnerDisconnect() {
+    if (peer) {
+        peer.destroy();
+        peer = null;
+    }
+    partnerVideo.srcObject = null;
+    startBtn.innerText = "Next Stranger";
+    startBtn.disabled = false;
+    alert("Stranger disconnected.");
+}
+
+function addVideoStream(video, stream) {
+    video.srcObject = stream;
+    video.addEventListener('loadedmetadata', () => {
+        video.play();
+    });
+}
