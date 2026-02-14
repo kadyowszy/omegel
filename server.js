@@ -8,14 +8,16 @@ app.use(express.static('public'));
 let waitingQueue = [];
 
 io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id);
+    console.log('User connected:', socket.id);
 
     socket.on('join_queue', () => {
         waitingQueue.push(socket.id);
-        
+        console.log(`User ${socket.id} joined. Queue size: ${waitingQueue.length}`);
+
         if (waitingQueue.length >= 2) {
             const user1 = waitingQueue.shift();
             const user2 = waitingQueue.shift();
+            console.log(`MATCHING: ${user1} <--> ${user2}`);
 
             io.to(user1).emit('match_found', { partnerId: user2, initiator: true });
             io.to(user2).emit('match_found', { partnerId: user1, initiator: false });
@@ -23,14 +25,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('signal', (data) => {
-        io.to(data.target).emit('signal', { 
-            signal: data.signal, 
-            sender: socket.id 
-        });
+        io.to(data.target).emit('signal', { signal: data.signal, sender: socket.id });
     });
 
     socket.on('disconnect', () => {
         waitingQueue = waitingQueue.filter(id => id !== socket.id);
+        console.log('User disconnected:', socket.id);
     });
 });
 
