@@ -2,57 +2,69 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>omegel</title>
     <style>
         body { 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
-            background: #222; 
+            background: #111; 
             color: white; 
-            font-family: sans-serif; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             min-height: 100vh;
+            box-sizing: border-box;
         }
 
-        h1 { margin-bottom: 10px; }
+        h1 { 
+            margin: 0 0 15px 0; 
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #666;
+        }
 
         .video-container { 
             display: flex; 
-            flex-wrap: wrap; 
+            flex-direction: row; 
             justify-content: center;
-            gap: 20px; 
+            gap: 15px; 
             width: 100%;
-            max-width: 1400px; 
+            max-width: 1200px;
+            flex: 1; 
         }
 
         .video-wrapper {
+            position: relative;
+            flex: 1;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            width: 100%;
-            max-width: 600px; 
+            background: black;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            min-height: 300px; 
         }
 
-        .video-box {
-            position: relative;
-            width: 100%; 
-            aspect-ratio: 4/3; 
-            background: black; 
-            border: 2px solid #555;
-            border-radius: 8px;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            z-index: 20;
+            pointer-events: none;
         }
 
         video { 
             width: 100%; 
             height: 100%; 
             object-fit: cover; 
+            display: block;
         }
 
         #myVideo {
@@ -61,41 +73,71 @@
 
         .status-msg {
             position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: #aaa;
             font-size: 1.2rem;
             z-index: 10;
+            text-align: center;
+            width: 100%;
         }
 
         #controls { 
-            margin-top: 20px; 
+            margin-top: 15px; 
             display: flex;
             gap: 10px;
-            flex-wrap: wrap;
+            width: 100%;
+            max-width: 600px;
             justify-content: center;
         }
         
         button, select { 
-            padding: 12px 24px; 
+            padding: 14px 20px; 
             font-size: 16px; 
             cursor: pointer; 
-            border-radius: 5px;
+            border-radius: 50px; 
             border: none;
+            outline: none;
+            flex: 1; 
         }
 
-        button { background: #007bff; color: white; font-weight: bold; }
-        button:disabled { background: #555; cursor: not-allowed; }
+        button { 
+            background: #2563eb; 
+            color: white; 
+            font-weight: 600; 
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+            transition: transform 0.1s;
+        }
         
-        select { background: #333; color: white; border: 1px solid #555; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background: #333; color: #777; box-shadow: none; }
+        
+        select { 
+            background: #222; 
+            color: white; 
+            border: 1px solid #444; 
+            max-width: 150px; 
+        }
 
         @media (max-width: 768px) {
+            body { padding: 10px; }
+            
             .video-container {
                 flex-direction: column; 
-                align-items: center;
+                gap: 10px;
+                height: auto;
             }
+
             .video-wrapper {
-                max-width: 100%; 
+                width: 100%;
+                height: 40vh; 
+                min-height: auto;
             }
-            h1 { font-size: 1.5rem; }
+
+            #controls {
+                margin-bottom: 20px; 
+            }
         }
     </style>
 </head>
@@ -105,24 +147,20 @@
     
     <div class="video-container">
         <div class="video-wrapper">
-            <h3>You</h3>
-            <div class="video-box">
-                <video id="myVideo" autoplay playsinline muted></video> 
-            </div>
+            <div class="label">You</div>
+            <video id="myVideo" autoplay playsinline muted></video> 
         </div>
 
         <div class="video-wrapper">
-            <h3>Stranger</h3>
-            <div class="video-box">
-                <p id="statusText" class="status-msg">Click Search</p>
-                <video id="partnerVideo" autoplay playsinline style="display: none;"></video>
-            </div>
+            <div class="label">Stranger</div>
+            <p id="statusText" class="status-msg">Click Search</p>
+            <video id="partnerVideo" autoplay playsinline style="display: none;"></video>
         </div>
     </div>
 
     <div id="controls">
         <select id="cameraSelect">
-            <option value="" disabled selected>Loading cameras...</option>
+            <option value="" disabled selected>Camera...</option>
         </select>
         
         <button id="startBtn">Search</button>
