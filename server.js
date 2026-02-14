@@ -6,21 +6,36 @@ const io = require('socket.io')(server);
 app.use(express.static('public'));
 
 let waitingQueue = [];
+let userHistory = new Map();
 
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    
+    userHistory.set(socket.id, new Set());
 
     socket.on('join_queue', () => {
-        waitingQueue.push(socket.id);
-        console.log(`User ${socket.id} joined. Queue size: ${waitingQueue.length}`);
+        const myHistory = userHistory.get(socket.id);
+        
+        let partnerIndex = waitingQueue.findIndex(id => !myHistory.has(id) && id !== socket.id);
 
-        if (waitingQueue.length >= 2) {
-            const user1 = waitingQueue.shift();
-            const user2 = waitingQueue.shift();
-            console.log(`MATCHING: ${user1} <--> ${user2}`);
+        if (partnerIndex === -1 && waitingQueue.length > 0) {
+            partnerIndex = 0; 
+        }
 
-            io.to(user1).emit('match_found', { partnerId: user2, initiator: true });
-            io.to(user2).emit('match_found', { partnerId: user1, initiator: false });
+        if (partnerIndex !== -1) {
+            const partnerId = waitingQueue[partnerIndex];
+            
+            waitingQueue.splice(partnerIndex, 1);
+
+            userHistory.get(socket.id).add(partnerId);
+            if (userHistory.has(partnerId)) {
+                userHistory.get(partnerId).add(socket.id);
+            }
+
+            io.to(socket.id).emit('match_found', { partnerId: partnerId, initiator: true });
+            io.to(partnerId).emit('match_found', { partnerId: socket.id, initiator: false });
+
+        } else {
+            waitingQueue.push(socket.id);
         }
     });
 
@@ -30,7 +45,7 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         waitingQueue = waitingQueue.filter(id => id !== socket.id);
-        console.log('User disconnected:', socket.id);
+        userHistory.delete(socket.id);
     });
 });
 
